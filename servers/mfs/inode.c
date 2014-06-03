@@ -385,7 +385,6 @@ register struct inode *rip;	/* pointer to inode to be read/written */
 int rw_flag;			/* READING or WRITING */
 {
 /* An entry in the inode table is to be copied to or from the disk. */
-
   register struct buf *bp;
   register struct super_block *sp;
   d1_inode *dip;
