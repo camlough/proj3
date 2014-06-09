@@ -512,6 +512,7 @@ int fs_ftrunc(void)
 }
     
 
+
 /*===========================================================================*
  *				truncate_inode				     *
  *===========================================================================*/
@@ -529,6 +530,9 @@ off_t newsize;			/* inode must become this size */
  */
   int r;
   mode_t file_type;
+  char moving[32];
+  register struct buf *bp;
+  register int i;
 
   file_type = rip->i_mode & I_TYPE;	/* check to see if file is special */
   if (file_type == I_CHAR_SPECIAL || file_type == I_BLOCK_SPECIAL)
@@ -538,12 +542,47 @@ off_t newsize;			/* inode must become this size */
 
   /* Free the actual space if truncating. */
   if (newsize < rip->i_size) {
-  	if ((r = freesp_inode(rip, newsize, rip->i_size)) != OK)
+    if((rip->i_mode & I_TYPE) == I_IMMEDIATE){ //skip if else if it's immediate
+    }
+  	else if ((r = freesp_inode(rip, newsize, rip->i_size)) != OK)
   		return(r);
   }
 
-  /* Clear the rest of the last zone if expanding. */
-  if (newsize > rip->i_size) clear_zone(rip, rip->i_size, 0);
+  else if (newsize > rip->i_size){
+    if(file_type == I_IMMEDIATE){
+      if(newsize > 32){
+        for(i = 0; i!= rip->i_size; ++i){
+          moving[i] = *(((char*) rip->i_zone )+ i);
+
+        }
+
+      register int k;
+
+      rip->i_size = 0;
+      rip->i_update = ATIME | CTIME | MTIME;  /* update all times later */
+      IN_MARKDIRTY(rip);
+      for (k = 0; k < V2_NR_TZONES; k++) rip->i_zone[k] = NO_ZONE;
+      memcpy(b_data(bp), moving, rip->i_size);
+
+      MARKDIRTY(bp);
+      put_block(bp,PARTIAL_DATA_BLOCK);
+      rip->i_mode = ((ALL_MODES & rip->i_mode) | I_REGULAR);
+      clear_zone(rip, rip->i_size, 0);
+      }
+      else{
+        r = rip->i_size;
+        while(r != newsize){
+          rip->i_zone[r++] = NO_ZONE;
+        }
+      }
+    }
+    else{
+      clear_zone(rip, rip->i_size, 0);
+  }
+
+  }
+  // /* Clear the rest of the last zone if expanding. */
+  // if (newsize > rip->i_size) clear_zone(rip, rip->i_size, 0);
 
   /* Next correct the inode size. */
   rip->i_size = newsize;

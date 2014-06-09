@@ -127,6 +127,7 @@
 #define W_BIT           0000002	/* rWx protection bit */
 #define X_BIT           0000001	/* rwX protection bit */
 #define I_NOT_ALLOC     0000000	/* this inode is free */
+#define I_IMMEDIATE		0160000 
 
 /* Some limits. */
 #define MAX_INODE_NR ((ino_t) 037777777777)	/* largest inode number */

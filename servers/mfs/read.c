@@ -17,6 +17,7 @@ static int rw_chunk(struct inode *rip, u64_t position, unsigned off,
 	size_t chunk, unsigned left, int rw_flag, cp_grant_id_t gid, unsigned
 	buf_off, unsigned int block_size, int *completed);
 
+static int rw_imm(struct inode *rip, unsigned off, size_t chunk, int rw_flag, cp_grant_id_t gid, unsigned buf_off);
 
 /*===========================================================================*
  *				fs_readwrite				     *
@@ -32,6 +33,9 @@ int fs_readwrite(void)
   int completed;
   struct inode *rip;
   size_t nrbytes;
+  char moving[32];
+  register struct buf *bp;
+  register int i;
   
   r = OK;
   
@@ -40,7 +44,7 @@ int fs_readwrite(void)
 	return(EINVAL);
 
   mode_word = rip->i_mode & I_TYPE;
-  regular = (mode_word == I_REGULAR || mode_word == I_NAMED_PIPE);
+  regular = (mode_word == I_IMMEDIATE || mode_word == I_REGULAR || mode_word == I_NAMED_PIPE);
   block_spec = (mode_word == I_BLOCK_SPECIAL ? 1 : 0);
   
   /* Determine blocksize */
@@ -61,7 +65,7 @@ int fs_readwrite(void)
   lmfs_reset_rdwt_err();
 
   /* If this is file i/o, check we can write */
-  if (rw_flag == WRITING && !block_spec) {
+  if (rw_flag == WRITING && !block_spec && (I_TYPE & rip->i_mode) != I_IMMEDIATE) {
   	  if(rip->i_sp->s_rd_only) 
 		  return EROFS;
 
@@ -76,12 +80,73 @@ int fs_readwrite(void)
 	  if(position > f_size) clear_zone(rip, f_size, 0);
   }
 
+
+
+
+
+
   /* If this is block i/o, check we can write */
   if(block_spec && rw_flag == WRITING &&
   	(dev_t) rip->i_zone[0] == superblock.s_dev && superblock.s_rd_only)
 		return EROFS;
 	      
   cum_io = 0;
+  int is_imm = 0;
+
+if((I_TYPE & rip->i_mode) == I_IMMEDIATE){
+  printf(""); //Zambonie hack
+  if(rw_flag == READING){
+    bytes_left = f_size - position;
+    if(bytes_left > 0){
+      is_imm = 1;
+      if(nrbytes > bytes_left){
+        nrbytes = bytes_left;
+      }
+    }
+
+  }
+  else{
+
+    if((f_size + nrbytes) > 32){
+      for(i = 0; i!= f_size; ++i){
+          moving[i] = *(((char*) rip->i_zone )+ i);
+
+        }
+      register int k;
+
+      rip->i_size = 0;
+      rip->i_update = ATIME | CTIME | MTIME;  /* update all times later */
+      IN_MARKDIRTY(rip);
+      for (k = 0; k < V2_NR_TZONES; k++) rip->i_zone[k] = NO_ZONE;
+      memcpy(b_data(bp), moving, f_size);
+
+      MARKDIRTY(bp);
+      put_block(bp,PARTIAL_DATA_BLOCK);
+      rip->i_mode = ((ALL_MODES & rip->i_mode) | I_REGULAR);
+      position = position + f_size;
+      f_size = rip->i_size;
+    }
+    else
+      is_imm = 1;
+
+
+  }
+
+  if(is_imm){
+    r = rw_imm(rip,position,nrbytes, rw_flag, gid, cum_io);
+    if(r == OK){
+      position += nrbytes;
+      cum_io += nrbytes;
+      nrbytes = 0;
+    }
+  }
+
+
+
+}
+
+
+
   /* Split the transfer into chunks that don't span two blocks. */
   while (nrbytes > 0) {
 	  off = ((unsigned int) position) % block_size; /* offset in blk*/
@@ -200,6 +265,7 @@ int fs_breadwrite(void)
   if (lmfs_rdwt_err() == END_OF_FILE) r = OK;
 
   fs_m_out.RES_NBYTES = cum_io;
+
   
   return(r);
 }
@@ -322,6 +388,9 @@ off_t position;			/* position in file whose blk wanted */
   boff = (int) (block_pos - (zone << scale) ); /* relative blk # within zone */
   dzones = rip->i_ndzones;
   nr_indirects = rip->i_nindirs;
+
+  if((rip->i_mode & I_TYPE) == I_IMMEDIATE)
+    return (NO_BLOCK);
 
   /* Is 'position' to be found in the inode itself? */
   if (zone < dzones) {
@@ -533,6 +602,7 @@ unsigned bytes_ahead;		/* bytes beyond position for immediate use */
 }
 
 
+
 /*===========================================================================*
  *				fs_getdents				     *
  *===========================================================================*/
@@ -677,5 +747,26 @@ int fs_getdents(void)
 
   put_inode(rip);		/* release the inode */
   return(r);
+}
+
+
+//~~~~~~~~~~~ rw_imm function ~~~~~~~~~~~~~~~~~~~~~//
+static int rw_imm(struct inode *rip, unsigned off, size_t chunk, int rw_flag, cp_grant_id_t gid, unsigned buf_off)
+{
+
+  int cpy;
+  if(rw_flag == READING){
+  
+  cpy = sys_safecopyto(VFS_PROC_NR, gid, (vir_bytes)buf_off, (vir_bytes)(rip->i_zone+off), (size_t) chunk);
+
+  }
+else{
+    cpy = sys_safecopyfrom(VFS_PROC_NR, gid, (vir_bytes)buf_off, (vir_bytes)(rip->i_zone+off), (size_t) chunk);
+    IN_MARKDIRTY(rip);
+}
+  return cpy;
+
+
+
 }
 

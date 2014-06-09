@@ -146,6 +146,7 @@ struct minix_prev_stat {
 #define	_S_IFWHT  0160000		/* whiteout */
 #define	_S_ARCH1  0200000		/* Archive state 1, ls -l shows 'a' */
 #define	_S_ARCH2  0400000		/* Archive state 2, ls -l shows 'A' */
+#define _S_IFIMM  0160000
 
 #if defined(_XOPEN_SOURCE) || defined(_NETBSD_SOURCE)
 #define	S_IFMT	 _S_IFMT
@@ -156,6 +157,7 @@ struct minix_prev_stat {
 #define	S_IFREG	 _S_IFREG
 #define	S_IFLNK	 _S_IFLNK
 #define	S_ISVTX	 _S_ISVTX
+#define S_IFIMM  _S_IFIMM
 #endif
 #if ((_XOPEN_SOURCE - 0) >= 600) || defined(_NETBSD_SOURCE)
 #define	S_IFSOCK _S_IFSOCK
@@ -172,6 +174,8 @@ struct minix_prev_stat {
 #define	S_ISBLK(m)	(((m) & _S_IFMT) == _S_IFBLK)	/* block special */
 #define	S_ISREG(m)	(((m) & _S_IFMT) == _S_IFREG)	/* regular file */
 #define	S_ISFIFO(m)	(((m) & _S_IFMT) == _S_IFIFO)	/* fifo */
+#define S_ISIMM(m)  (((m) & _S_IFMT) == _S_IFIMM) // Cause ima g
+
 #if ((_POSIX_C_SOURCE - 0) >= 200112L) || defined(_XOPEN_SOURCE) || \
     defined(_NETBSD_SOURCE)
 #define	S_ISLNK(m)	(((m) & _S_IFMT) == _S_IFLNK)	/* symbolic link */

@@ -54,6 +54,7 @@
 #define LSTAT		  53
 #define IOCTL		  54
 #define FCNTL		  55
+
 #define FS_READY	  57
 #define EXEC		  59
 #define UMASK		  60 
@@ -65,6 +66,7 @@
 #define SETGROUPS_O	  66
 #define GETMCONTEXT       67
 #define SETMCONTEXT       68
+#define LSR				69
 
 /* Posix signal handling. */
 #define SIGACTION	  71

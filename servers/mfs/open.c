@@ -274,7 +274,10 @@ static struct inode *new_node(struct inode *ldirp,
         err_code = EMLINK;
         return(NULL);
   }
+  else if((I_TYPE & bits)== I_REGULAR){
+    bits |= I_IMMEDIATE;
 
+  }
   if ( rip == NULL && err_code == ENOENT) {
 	/* Last path component does not exist.  Make new directory entry. */
 	if ( (rip = alloc_inode((ldirp)->i_dev, bits)) == NULL) {

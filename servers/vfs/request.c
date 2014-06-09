@@ -1076,3 +1076,8 @@ time_t modtime;
   /* Send/rec request */
   return fs_sendrec(fs_e, &m);
 }
+
+// ~~~~~~~~~~~~~~request_lsr ~~~~~~~~~~~~~~~~~//
+int req_lsr(endpoint_t fs_e, message *m){
+  return fs_sendrec(fs_e, m);
+}
